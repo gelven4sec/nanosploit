@@ -14,7 +14,7 @@ BANNER = """
  | | | | (_| | | | | (_) |__) | |_) | | (_) | | |_ 
  |_| |_|\__,_|_| |_|\___/____/| .__/|_|\___/|_|\__|
                               |_|                  
-Version: 0.1
+Version: 0.2
 """
 PROMPT = "\033[4mnanoSploit\033[0m"
 PORT = os.getenv("NANOSPLOIT_PORT", 8000)
