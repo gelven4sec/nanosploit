@@ -37,10 +37,13 @@ class NanoSploitResolver(BaseResolver):
 def init_dns_server():
     # Define our custom resolver
     resolver = NanoSploitResolver()
+
     # Set the logger function to a None function, so it doesn't print things on screen
     logger = DNSLogger(logf=lambda _: None)
+
     # Instantiate a DNS server
     server = DNSServer(resolver, port=5353, logger=logger)
+
     # Start server in background
     server.start_thread()
     print("📔 Started DNS server on port 5353")
