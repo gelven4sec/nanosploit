@@ -18,6 +18,13 @@ Minimalist C2 server for educational purpose.
 - Cross-platform
 - No external modules in payload (no need to `pip install` something)
 
+## Install
+
+With pip:
+```shell
+pip install git+https://github.com/nanosploit/nanosploit.git
+```
+
 ## Usage
 
 ### Server
