@@ -8,7 +8,7 @@ from base64 import b64encode
 
 # Static globals
 SYSTEM = platform.system()
-LOCK_PATH = "/tmp/nanosploit.lock" if SYSTEM == "Linux" else "C:/temp/nanosploit.lock"
+LOCK_PATH = "/tmp/nanosploit.lock" if SYSTEM == "Linux" else f"C:/Users/{os.getlogin()}/AppData/Local/Temp/nanosploit.lock"
 SYSTEMD_UNIT = """[Unit]
 Description=nanoSploit
 After=network.target
