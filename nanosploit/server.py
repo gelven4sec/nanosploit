@@ -101,12 +101,14 @@ def process_cmd(args: str, clients: dict[str, Victim]):
             else:
                 print("No active clients")
         case "client":
-            # TODO: Check args_list length
-            # Command to select a victim
-            if args_list[1].isdigit():
-                select_client(args_list[1], clients)
+            if len(args_list) < 2:
+                print("Missing client number !")
             else:
-                print(f"Unknown command: '{args}'")
+                # Command to select a victim
+                if args_list[1].isdigit():
+                    select_client(args_list[1], clients)
+                else:
+                    print(f"Unknown command: '{args}'")
         case _:
             print(f"Unknown command: '{args}'")
 

