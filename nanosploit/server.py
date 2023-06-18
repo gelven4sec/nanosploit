@@ -109,6 +109,12 @@ def process_cmd(args: str, clients: dict[str, Victim]):
                     select_client(args_list[1], clients)
                 else:
                     print(f"Unknown command: '{args}'")
+        case "help":
+            print("""
+help\t\t- Print this message
+clients\t\t- List active connections
+client NB\t- Select a client by replace NB with it's id number
+""")
         case _:
             print(f"Unknown command: '{args}'")
 
