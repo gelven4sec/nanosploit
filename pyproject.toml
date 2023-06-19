@@ -9,6 +9,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.10"
 dnslib = "^0.9.23"
+pygobject = "^3.44.1"
 
 
 [build-system]

