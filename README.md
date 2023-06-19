@@ -14,8 +14,11 @@ Minimalist C2 server for educational purpose.
 - DNS ex-filtration
   - Used for download/upload
 - Persistence
-  - Linux -> Systemd service -> every 3 seconds
-  - Windows -> Scheduled task -> every minute
+  - Linux :
+    - Systemd service -> every 3 seconds
+    - Crontab -> every minute
+  - Windows :
+    - Scheduled task -> every minute
 
 ### Bonus
 
