@@ -75,7 +75,7 @@ def get_chunk(domain, server, port) -> bytes:
 
 def dns_receive(dst_path) -> bool:
     while True:
-        chunk = get_chunk("file.get", HOST, 5353)
+        chunk = get_chunk("file.get", HOST, 8053)
 
         if chunk == b"end":
             break
@@ -318,7 +318,7 @@ def dns_send(file_path) -> bool:
     chunks = split_into_chunks(content)
     for chunk in chunks:
         # Send each chunk in a DNS query
-        answer = send_chunk(chunk, HOST, 5353)
+        answer = send_chunk(chunk, HOST, 8053)
         if answer == "2.2.2.2":
             print(f"Failed sending chunk '{chunk}'")
 

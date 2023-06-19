@@ -47,11 +47,11 @@ def init_dns_server():
     logger = DNSLogger(logf=lambda _: None)
 
     # Instantiate a DNS server
-    server = DNSServer(resolver, port=5353, logger=logger)
+    server = DNSServer(resolver, port=8053, logger=logger)
 
     # Start server in background
     server.start_thread()
-    print("📔 Started DNS server on port 5353")
+    print("📔 Started DNS server on port 8053")
 
     global dns_handler
     dns_handler = resolver

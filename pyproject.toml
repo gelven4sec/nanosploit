@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nanosploit"
-version = "0.2.0"
+version = "1.0.0"
 description = "Minimalist C2 server for educational purpose."
 authors = ["sven-eliasen <jo.pettersen@protonmail.com>"]
 license = "MIT"
