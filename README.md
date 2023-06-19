@@ -17,7 +17,8 @@ Minimalist C2 server for educational purpose.
   - Linux :
     - Systemd service -> every 3 seconds
     - Crontab -> every minute
-  - Windows -> Scheduled task -> every minute
+  - Windows :
+    - Scheduled task -> every minute
 
 ### Bonus
 
