@@ -33,7 +33,7 @@ Minimalist C2 server for educational purpose.
 
 With pip:
 ```shell
-pip install git+https://github.com/nanosploit/nanosploit.git
+pip install git+https://github.com/gelven4sec/nanosploit.git
 ```
 
 ## Usage
